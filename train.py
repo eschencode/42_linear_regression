@@ -1,16 +1,15 @@
 import argparse
 import csv
 
-import matplotlib.pyplot as plt
-
 
 def estimatePrice(kilometer, theta0, theta1):
     return theta0 + (theta1 * kilometer)
 
 
+# need to scale dataset to combat imbalance between the two parameters gradients
 def scaleDataset(milleages, dataset_min, dataset_max):
     scaledDataset = []
-    totalelements = len(mileages)
+    totalelements = len(milleages)
     for i in range(totalelements):
         scaledDataset.append((mileages[i] - dataset_min) / (dataset_max - dataset_min))
     return scaledDataset
@@ -19,24 +18,27 @@ def scaleDataset(milleages, dataset_min, dataset_max):
 def training(theta0, theta1, scaled_milleages, learningRate, iterations):
     sum0 = 0.0
     sum1 = 0.0
-    temp0 = theta0
-    temp1 = theta1
     m = len(scaled_milleages)
     for j in range(iterations):
         sum0 = 0
         sum1 = 0
         for i in range(m):
-            estimatedPrice = estimatePrice(scaled_milleages[i], temp0, temp1)
+            estimatedPrice = estimatePrice(scaled_milleages[i], theta0, theta1)
             error = estimatedPrice - prices[i]
             sum0 += error
             sum1 += error * scaled_milleages[i]
-            # adjust temps
-            temp0 = temp0 - (learningRate / m) * sum0
-            temp1 = temp1 - (learningRate / m) * sum1
-    return (temp0, temp1)
+            # scaled the millage becuse if not sum1 very imbalenced for example error times 250 k kilometers is in millions but still same learning rate as sum0
+        # adjust values after each batch
+        temp0 = theta0 - (learningRate / m) * sum0
+        temp1 = theta1 - (learningRate / m) * sum1
+        theta0 = temp0
+        theta1 = temp1
+    return (theta0, theta1)
 
 
 def draw_nonscaled(mileages, theta0, theta1, dataset_min, dataset_max):
+    import matplotlib.pyplot as plt
+
     plt.scatter(mileages, prices, color="blue", label="Actual Data")
 
     line_x = [min(mileages), max(mileages)]
@@ -55,6 +57,8 @@ def draw_nonscaled(mileages, theta0, theta1, dataset_min, dataset_max):
 
 
 def draw_scaled(scaled_milleages, theta0, theta1):
+    import matplotlib.pyplot as plt
+
     # 1. Draw the raw data points (Scatter plot)
     plt.scatter(scaled_milleages, prices, color="blue", label="Actual Data")
 
@@ -76,21 +80,31 @@ def draw_scaled(scaled_milleages, theta0, theta1):
     plt.show()
 
 
-mileages = []
-prices = []
-# read data
-with open("Daten.csv") as f:
-    reader = csv.reader(f)
-    next(reader)  # skip header
-    for row in reader:
-        mileages.append(float(row[0]))
-        prices.append(float(row[1]))
+def read_dataset(filename):
+    mileages = []
+    prices = []
+    # read data
+    with open(filename) as f:
+        reader = csv.reader(f)
+        next(reader)  # skip header
+        for row in reader:
+            mileages.append(float(row[0]))
+            prices.append(float(row[1]))
+    return mileages, prices
 
-# find min and max value --> save in to theta csv too
-dataset_min = min(mileages)
-dataset_max = max(mileages)
-# scale dataset
-scaled_milleages = scaleDataset(mileages, dataset_min, dataset_max)
+
+def validate_dataset(mileages):
+    # validate dataset before training
+    if len(mileages) == 0:
+        print("Daten.csv has no data, cannot train")
+        exit(1)
+    # find min and max value --> save in to theta csv too
+    dataset_min = min(mileages)
+    dataset_max = max(mileages)
+    if dataset_max == dataset_min:
+        print("all mileages are identical (range is 0), cannot scale/train")
+        exit(1)
+    return dataset_min, dataset_max
 
 
 theta0 = 0.0
@@ -98,7 +112,13 @@ theta1 = 0.0
 learningRate = 0.1
 iterations = 1000
 print("starting thetas: ", theta0, theta1)
-# get theta values thrugh training
+
+mileages, prices = read_dataset("data.csv")
+
+dataset_min, dataset_max = validate_dataset(mileages)
+
+scaled_milleages = scaleDataset(mileages, dataset_min, dataset_max)
+
 theta0, theta1 = training(theta0, theta1, scaled_milleages, learningRate, iterations)
 
 print("Training complete!")
