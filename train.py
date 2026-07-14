@@ -84,12 +84,19 @@ def read_dataset(filename):
     mileages = []
     prices = []
     # read data
-    with open(filename) as f:
-        reader = csv.reader(f)
-        next(reader)  # skip header
-        for row in reader:
-            mileages.append(float(row[0]))
-            prices.append(float(row[1]))
+    try:
+        with open(filename) as f:
+            reader = csv.reader(f)
+            next(reader)  # skip header
+            for row in reader:
+                mileages.append(float(row[0]))
+                prices.append(float(row[1]))
+    except FileNotFoundError:
+        print(filename, "not found, cannot train")
+        exit(1)
+    except (ValueError, IndexError):
+        print(filename, "contains invalid data, cannot train")
+        exit(1)
     return mileages, prices
 
 
